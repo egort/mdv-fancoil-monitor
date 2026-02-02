@@ -96,19 +96,27 @@ Bits 0-4 = Mode selection:
 ### TEMP Byte (byte 11 in response, byte 9 in SET command)
 
 Temperature setpoint in °C (decimal value).
-- Example: `0x12` = 18°C, `0x18` = 24°C
-- In FAN mode: 0xFF
+- Example: `0x12` = 18°C, `0x16` = 22°C
+
+### Room Temperature (byte 8 in response)
+
+**MDV MKG-300C:** Direct reading in °C.
+- Example: `0x14` = 20°C
+
+Note: XYE docs say this is "capabilities", but on MKG-300C it's room temperature.
 
 ### Temperature Sensors (bytes 12-15 in response)
 
-According to XYE docs, temperature values are encoded as: `value * 0.5 - 0x30` °C
+XYE docs say temperature values are encoded as: `value * 0.5 - 48` °C
 
-| Byte | Name | Description |
-|------|------|-------------|
-| 12 | T1 | Indoor coil temperature |
-| 13 | T2A | ? |
-| 14 | T2B | ? |
-| 15 | T3 | ? |
+| Byte | Name | XYE Description | MKG-300C Observed |
+|------|------|-----------------|-------------------|
+| 12 | T1 | Indoor coil temp | 0x50 (80) - static, possibly `80-60=20°C`? |
+| 13 | T2A | ? | 0x4E (78) - static |
+| 14 | T2B | ? | 0xFF (invalid) |
+| 15 | T3 | ? | 0xFF (invalid) |
+
+**Note:** On MKG-300C bytes 12-13 don't change with temperature setpoint. Need more testing to understand encoding.
 
 ### Current (byte 16 in response)
 
@@ -190,7 +198,40 @@ TX: FE AA C3 30 00 80 00 88 04 12 00 00 00 00 3C B3 55
 ## Unknown Bytes (to be researched)
 
 - **B7 (0xE0):** Capabilities? (XYE: 0x80 = extended temp 16-32°C, 0x10 = has SWING)
-- **B8 (0x14):** Room temperature? (0x14 = 20) - possibly capabilities byte
+
+## MKG-300C Response Byte Map
+
+Verified mapping for MDV MKG-300C (2024):
+
+| Byte | Hex | Description | Verified |
+|------|-----|-------------|----------|
+| 0 | FE | Preamble (extra) | ✅ |
+| 1 | AA | Preamble | ✅ |
+| 2 | C0 | Response code | ✅ |
+| 3 | 80 | To master | ✅ |
+| 4 | 00 | Destination | ✅ |
+| 5 | 30 | Device address (48) | ✅ |
+| 6 | 00 | ? | |
+| 7 | E0 | Capabilities? | |
+| 8 | 14 | **Room Temp (20°C)** | ✅ |
+| 9 | xx | **MODE** | ✅ |
+| 10 | xx | **SPEED** | ✅ |
+| 11 | xx | **Set Temp (°C)** | ✅ |
+| 12 | 50 | T1? (static 80) | ? |
+| 13 | 4E | T2A? (static 78) | ? |
+| 14 | FF | T2B (invalid) | |
+| 15 | FF | T3 (invalid) | |
+| 16 | FF | Current (invalid) | |
+| 17 | 00 | Timer Start | |
+| 18 | 00 | Timer Stop | |
+| 19 | 00 | ? | |
+| 20 | xx | Mode Flags (SWING) | ✅ |
+| 21 | xx | Oper Flags | ✅ |
+| 22-25 | 00 | Error/Protect | |
+| 26 | 00 | CCM Error | |
+| 27-28 | 00 | ? | |
+| 29-30 | FF | ? | |
+| 31 | xx | CRC | ✅ |
 
 ## Equipment Tested
 
@@ -205,12 +246,15 @@ TX: FE AA C3 30 00 80 00 88 04 12 00 00 00 00 3C B3 55
 
 ## Differences from XYE Documentation
 
-Our observations on MDV MKG-300C (2024):
+Observations on MDV MKG-300C (2024) vs XYE docs:
 
-1. **Preamble:** We see `0xFE 0xAA` instead of just `0xAA`
-2. **Fan Speed:** XYE says LOW=0x03, we observed LOW=0x04
-3. **Response byte positions:** May be shifted due to extra 0xFE byte
-4. **CRC:** Formula may differ slightly
+| Parameter | XYE Docs | MKG-300C | Notes |
+|-----------|----------|----------|-------|
+| Preamble | `AA` | `FE AA` | Extra 0xFE byte |
+| Fan LOW | 0x03 | 0x04 | Different encoding |
+| Fan AUTO | 0x80 | 0x80 | Same ✅ |
+| Byte 8 | Capabilities | Room Temp | Direct °C reading |
+| T1-T3 encoding | `val×0.5-48` | Unknown | Bytes 12-13 static on MKG-300C |
 
 ## Protocol Variants
 
