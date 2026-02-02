@@ -98,25 +98,22 @@ Bits 0-4 = Mode selection:
 Temperature setpoint in °C (decimal value).
 - Example: `0x12` = 18°C, `0x16` = 22°C
 
-### Room Temperature (byte 8 in response)
+### Byte 8 (capabilities/unknown)
 
-**MDV MKG-300C:** Direct reading in °C.
-- Example: `0x14` = 20°C
+**MDV MKG-300C:** Always returns `0x14` (20). Does NOT represent room temperature - value stays constant regardless of actual room temp.
 
-Note: XYE docs say this is "capabilities", but on MKG-300C it's room temperature.
+XYE docs say this is "capabilities" byte.
 
-### Temperature Sensors (bytes 12-15 in response)
+### Bytes 12-15 (unknown)
 
-XYE docs say temperature values are encoded as: `value * 0.5 - 48` °C
+| Byte | MKG-300C Observed | Notes |
+|------|-------------------|-------|
+| 12 | Variable (64-80) | Changes, but NOT correlated with temperature |
+| 13 | Variable (72-78) | Changes, but NOT correlated with temperature |
+| 14 | 0xFF | Invalid/unused |
+| 15 | 0xFF | Invalid/unused |
 
-| Byte | Name | XYE Description | MKG-300C Observed |
-|------|------|-----------------|-------------------|
-| 12 | T1 | Indoor coil temp | 0x50 (80) - static, possibly `80-60=20°C`? |
-| 13 | T2A | ? | 0x4E (78) - static |
-| 14 | T2B | ? | 0xFF (invalid) |
-| 15 | T3 | ? | 0xFF (invalid) |
-
-**Note:** On MKG-300C bytes 12-13 don't change with temperature setpoint. Need more testing to understand encoding.
+**Note:** XYE docs claim bytes 12-13 are T1/T2A temperature sensors with formula `val × 0.5 - 48`. This was NOT confirmed on MKG-300C - values don't correlate with actual room temperature changes.
 
 ### Current (byte 16 in response)
 
@@ -213,12 +210,12 @@ Verified mapping for MDV MKG-300C (2024):
 | 5 | 30 | Device address (48) | ✅ |
 | 6 | 00 | ? | |
 | 7 | E0 | Capabilities? | |
-| 8 | 14 | **Room Temp (20°C)** | ✅ |
+| 8 | 14 | Static (NOT room temp) | ❌ |
 | 9 | xx | **MODE** | ✅ |
 | 10 | xx | **SPEED** | ✅ |
 | 11 | xx | **Set Temp (°C)** | ✅ |
-| 12 | 50 | T1? (static 80) | ? |
-| 13 | 4E | T2A? (static 78) | ? |
+| 12 | xx | Unknown (variable) | ❌ |
+| 13 | xx | Unknown (variable) | ❌ |
 | 14 | FF | T2B (invalid) | |
 | 15 | FF | T3 (invalid) | |
 | 16 | FF | Current (invalid) | |
