@@ -1,69 +1,69 @@
 # MDV Fancoil Monitor
 
-Утилита для мониторинга и реверс-инжиниринга протокола фанкойлов MDV по RS485.
+Utility for monitoring and reverse-engineering MDV fancoil RS485 protocol.
 
-## Протокол
+## Protocol
 
-### Параметры порта
-- Скорость: 4800 бод
-- Биты данных: 8
-- Чётность: None
-- Стоп-биты: 1
+### Serial Port Settings
+- Baud rate: 4800
+- Data bits: 8
+- Parity: None
+- Stop bits: 1
 
-### Формат запроса (17 байт)
+### Request Format (17 bytes)
 ```
 FE AA C0 [ADDR] 00 80 00 00 00 00 00 00 00 00 3F [CRC] 55
 ```
-- `FE AA` — заголовок
-- `C0` — команда чтения
-- `[ADDR]` — адрес устройства (0-63)
-- `[CRC]` — контрольная сумма (129 - ADDR)
-- `55` — конец пакета
+- `FE AA` — header
+- `C0` — read command
+- `[ADDR]` — device address (0-63)
+- `[CRC]` — checksum (129 - ADDR)
+- `55` — end of packet
 
-### Формат ответа (32 байта)
+### Response Format (32 bytes)
 ```
 FE AA C0 80 00 [ADDR] 00 XX XX [MODE] [SPEED] [SETTEMP] ... [SWING_H] [SWING_L] ... [CRC]
 ```
 
-### Расшифровка байтов ответа
+### Response Bytes Decoding
 
-| Байт | Параметр | Значения |
-|------|----------|----------|
-| 9 | Режим | 0=OFF, 129=FAN, 130=DRY, 132=HEAT, 136=COOL, 145=AUTO |
-| 10 | Скорость | 1=HIGH, 2=MED, 4=LOW |
-| 11 | Уставка | температура °C |
-| 21-22 | Свинг | 4,1=ON / 0,0=OFF |
+| Byte | Parameter | Values |
+|------|-----------|--------|
+| 9 | Mode | 0=OFF, 129=FAN, 130=DRY, 132=HEAT, 136=COOL, 145=AUTO |
+| 10 | Fan Speed | 1=HIGH, 2=MED, 4=LOW |
+| 11 | Set Temp | temperature °C |
+| 21-22 | Swing | 4,1=ON / 0,0=OFF |
 
-## Установка
+## Installation
 
 ```bash
 pip install pyserial
 ```
 
-## Использование
+## Usage
 
-### Автосканирование (поиск устройств)
+### Auto-scan (device discovery)
 ```bash
 python scan_auto.py
 ```
 
-### Мониторинг в реальном времени
+### Real-time Monitoring
 ```bash
 python monitor.py
 ```
-Нажмите **Q**, **ESC** или **Ctrl+C** для выхода.
+Press **Q**, **ESC** or **Ctrl+C** to exit.
 
-### Интерактивный сканер
+### Interactive Scanner
 ```bash
 python mdv_scanner.py
 ```
 
-## Настройка
+## Configuration
 
-Измените `COM10` на ваш порт в файлах:
-- `monitor.py` — строка с `serial.Serial(port='COM10', ...)`
-- `scan_auto.py` — аналогично
+Change `COM10` to your port in files:
+- `monitor.py` — line with `serial.Serial(port='COM10', ...)`
+- `scan_auto.py` — same
 
-## Лицензия
+## License
 
 MIT

@@ -1,12 +1,12 @@
 import serial
 import time
-import msvcrt  # Для Windows - проверка нажатия клавиши
+import msvcrt  # Windows - check key press
 
 def create_request(addr):
     crc = 129 - addr
     return bytes([0xFE, 0xAA, 0xC0, addr, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, crc, 0x55])
 
-# Расшифровка режимов (байт 9)
+# Mode decoding (byte 9)
 MODES = {
     0: "OFF",
     129: "FAN",
@@ -16,7 +16,7 @@ MODES = {
     145: "AUTO",
 }
 
-# Расшифровка скорости (байт 10)
+# Speed decoding (byte 10)
 SPEEDS = {
     0: "---",
     1: "HIGH",
@@ -41,7 +41,7 @@ def get_swing(b21, b22):
         return f"?({b21},{b22})"
 
 print("=" * 90)
-print("  MDV Monitor - Адрес 48 | Нажми Q или ESC для выхода")
+print("  MDV Monitor - Address 48 | Press Q or ESC to exit")
 print("=" * 90)
 
 ser = serial.Serial(port='COM10', baudrate=4800, timeout=0.5)
@@ -50,7 +50,7 @@ request = create_request(addr)
 
 last_response = None
 count = 0
-changed_bytes = set()  # Накапливаем все изменявшиеся байты
+changed_bytes = set()  # Accumulate all changed bytes
 
 try:
     while True:
@@ -62,22 +62,22 @@ try:
         count += 1
         
         if response and len(response) >= 10:
-            # Показываем только если изменилось
+            # Show only if changed
             if response != last_response:
                 hex_str = response.hex(' ').upper()
                 
-                # Подсветка изменений
+                # Highlight changes
                 if last_response:
                     diff = []
                     for i in range(min(len(response), len(last_response))):
                         if response[i] != last_response[i]:
                             diff.append(i)
                             changed_bytes.add(i)
-                    print(f"\n*** ИЗМЕНЕНИЕ в байтах: {diff} ***")
+                    print(f"\n*** CHANGED bytes: {diff} ***")
                 
                 print(f"[{count:4d}] {hex_str}")
                 
-                # Расшифровка известных байтов
+                # Decode known bytes
                 b9 = response[9]
                 b10 = response[10]
                 settemp = response[11]
@@ -86,29 +86,29 @@ try:
                 mode = get_mode(b9)
                 speed = get_speed(b10)
                 swing = get_swing(b21, b22)
-                print(f"       Режим={mode:5s} | Скорость={speed:5s} | Уставка={settemp}°C | Свинг={swing}")
+                print(f"       Mode={mode:5s} | Speed={speed:5s} | SetTemp={settemp}°C | Swing={swing}")
                 
-                # Вывод всех изменявшихся байтов
+                # Output all changed bytes
                 if changed_bytes:
-                    changed_vals = " | ".join([f"Б{i}={response[i]:3d}" for i in sorted(changed_bytes) if i < len(response)])
-                    print(f"       Изменявшиеся: {changed_vals}")
+                    changed_vals = " | ".join([f"B{i}={response[i]:3d}" for i in sorted(changed_bytes) if i < len(response)])
+                    print(f"       Changed: {changed_vals}")
                 
                 last_response = response
         else:
             if count % 20 == 0:
-                print(f"[{count:4d}] нет ответа")
+                print(f"[{count:4d}] no response")
         
-        # Проверка нажатия клавиши
+        # Check key press
         if msvcrt.kbhit():
             key = msvcrt.getch()
-            if key in (b'q', b'Q', b'\x1b'):  # q, Q или ESC
-                print("\n\nВыход по нажатию клавиши.")
+            if key in (b'q', b'Q', b'\x1b'):  # q, Q or ESC
+                print("\n\nExit by key press.")
                 break
         
         time.sleep(0.3)
 
 except KeyboardInterrupt:
-    print("\n\nОстановлено (Ctrl+C).")
+    print("\n\nStopped (Ctrl+C).")
 finally:
     ser.close()
-    print("Порт закрыт.")
+    print("Port closed.")

@@ -3,12 +3,12 @@ import serial.tools.list_ports
 import time
 
 def create_request(addr):
-    """Создать запрос для адреса фанкойла"""
+    """Create request for fancoil address"""
     crc = 129 - addr
     return bytes([0xFE, 0xAA, 0xC0, addr, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, crc, 0x55])
 
 def parse_response(data):
-    """Разобрать ответ фанкойла"""
+    """Parse fancoil response"""
     if len(data) < 10:
         return None
     
@@ -25,31 +25,31 @@ def parse_response(data):
         'room_temp': data[10] if len(data) > 10 else 0,
     }
     
-    modes = {0x08: 'Холод', 0x04: 'Тепло', 0x02: 'Осушение', 0x01: 'Вентилятор', 0x10: 'Авто'}
-    result['mode'] = modes.get(result['mode_raw'], f'Неизв({result["mode_raw"]:02X})')
+    modes = {0x08: 'Cool', 0x04: 'Heat', 0x02: 'Dry', 0x01: 'Fan', 0x10: 'Auto'}
+    result['mode'] = modes.get(result['mode_raw'], f'Unknown({result["mode_raw"]:02X})')
     
-    speeds = {0x04: 'Низкая', 0x02: 'Средняя', 0x01: 'Высокая', 0x80: 'Авто'}
-    result['speed'] = speeds.get(result['speed_raw'], f'Неизв({result["speed_raw"]:02X})')
+    speeds = {0x04: 'Low', 0x02: 'Med', 0x01: 'High', 0x80: 'Auto'}
+    result['speed'] = speeds.get(result['speed_raw'], f'Unknown({result["speed_raw"]:02X})')
     
     return result
 
 print("=" * 60)
-print("  MDV Fancoil Scanner - Автосканирование")
+print("  MDV Fancoil Scanner - Auto-scan")
 print("=" * 60)
 
-# Найти COM-порты
+# Find COM ports
 ports = list(serial.tools.list_ports.comports())
-print(f"\nНайдено портов: {len(ports)}")
+print(f"\nPorts found: {len(ports)}")
 for p in ports:
     print(f"  - {p.device}: {p.description}")
 
 if not ports:
-    print("COM-порты не найдены!")
+    print("No COM ports found!")
     exit(1)
 
-# Берём первый порт
+# Use first port
 port_name = ports[0].device
-print(f"\nИспользую порт: {port_name}")
+print(f"\nUsing port: {port_name}")
 
 try:
     ser = serial.Serial(
@@ -60,13 +60,13 @@ try:
         stopbits=1,
         timeout=0.5
     )
-    print("Подключено!\n")
+    print("Connected!\n")
 except Exception as e:
-    print(f"Ошибка: {e}")
+    print(f"Error: {e}")
     exit(1)
 
 print("=" * 60)
-print("  Сканирование адресов 45-55")
+print("  Scanning addresses 45-55")
 print("=" * 60)
 
 found = []
@@ -80,23 +80,23 @@ for addr in range(45, 56):
     response = ser.read(32)
     
     if response and len(response) >= 4:
-        print(f"\nАдрес {addr}: ОТВЕТ!")
+        print(f"\nAddress {addr}: RESPONSE!")
         print(f"  RAW: {response.hex(' ').upper()}")
         parsed = parse_response(response)
         if parsed:
-            print(f"  Питание:  {'ВКЛ' if parsed['power'] else 'ВЫКЛ'}")
-            print(f"  Режим:    {parsed['mode']}")
-            print(f"  Скорость: {parsed['speed']}")
-            print(f"  Уставка:  {parsed['set_temp']}°C")
+            print(f"  Power:    {'ON' if parsed['power'] else 'OFF'}")
+            print(f"  Mode:     {parsed['mode']}")
+            print(f"  Speed:    {parsed['speed']}")
+            print(f"  SetTemp:  {parsed['set_temp']}°C")
         found.append(addr)
     else:
-        print(f"Адрес {addr}: --")
+        print(f"Address {addr}: --")
 
 ser.close()
 
 print("\n" + "=" * 60)
 if found:
-    print(f"Найдено устройств: {len(found)} на адресах: {found}")
+    print(f"Devices found: {len(found)} at addresses: {found}")
 else:
-    print("Устройства не найдены в диапазоне 45-55")
+    print("No devices found in range 45-55")
 print("=" * 60)

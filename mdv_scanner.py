@@ -3,53 +3,53 @@ import serial.tools.list_ports
 import time
 
 def list_ports():
-    """Показать доступные COM-порты"""
-    print("\n=== Доступные COM-порты ===")
+    """Show available COM ports"""
+    print("\n=== Available COM Ports ===")
     ports = list(serial.tools.list_ports.comports())
     if not ports:
-        print("Порты не найдены!")
+        print("No ports found!")
         return None
     for i, p in enumerate(ports):
         print(f"  {i+1}. {p.device} - {p.description}")
     return ports
 
 def create_request(addr):
-    """Создать запрос для адреса фанкойла"""
+    """Create request for fancoil address"""
     crc = 129 - addr
     return bytes([0xFE, 0xAA, 0xC0, addr, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, crc, 0x55])
 
 def parse_response(data):
-    """Разобрать ответ фанкойла"""
+    """Parse fancoil response"""
     if len(data) < 17:
         return None
     
-    # Проверка заголовка
+    # Check header
     if data[0] != 0xFE or data[1] != 0xAA:
         return None
     
     result = {
         'raw': data.hex(' ').upper(),
         'addr': data[3],
-        'power': (data[7] & 0x80) >> 7,  # Бит 7 - вкл/выкл
-        'mode_raw': data[7] & 0x1F,      # Биты 0-4 - режим
+        'power': (data[7] & 0x80) >> 7,  # Bit 7 - on/off
+        'mode_raw': data[7] & 0x1F,      # Bits 0-4 - mode
         'speed_raw': data[8],
         'set_temp': data[9],
         'room_temp': data[10] if len(data) > 10 else 0,
     }
     
-    # Расшифровка режима
-    modes = {0x08: 'Холод', 0x04: 'Тепло', 0x02: 'Осушение', 0x01: 'Вентилятор', 0x10: 'Авто'}
-    result['mode'] = modes.get(result['mode_raw'], f'Неизв({result["mode_raw"]:02X})')
+    # Mode decoding
+    modes = {0x08: 'Cool', 0x04: 'Heat', 0x02: 'Dry', 0x01: 'Fan', 0x10: 'Auto'}
+    result['mode'] = modes.get(result['mode_raw'], f'Unknown({result["mode_raw"]:02X})')
     
-    # Расшифровка скорости
-    speeds = {0x04: 'Низкая', 0x02: 'Средняя', 0x01: 'Высокая', 0x80: 'Авто'}
-    result['speed'] = speeds.get(result['speed_raw'], f'Неизв({result["speed_raw"]:02X})')
+    # Speed decoding
+    speeds = {0x04: 'Low', 0x02: 'Med', 0x01: 'High', 0x80: 'Auto'}
+    result['speed'] = speeds.get(result['speed_raw'], f'Unknown({result["speed_raw"]:02X})')
     
     return result
 
 def scan_range(port, start_addr, end_addr):
-    """Сканировать диапазон адресов"""
-    print(f"\n=== Сканирование адресов {start_addr}-{end_addr} ===")
+    """Scan address range"""
+    print(f"\n=== Scanning addresses {start_addr}-{end_addr} ===")
     found = []
     
     for addr in range(start_addr, end_addr + 1):
@@ -62,20 +62,20 @@ def scan_range(port, start_addr, end_addr):
         response = port.read(32)
         
         if response and len(response) >= 4:
-            print(f"  Адрес {addr:3d}: ОТВЕТ - {response.hex(' ').upper()}")
+            print(f"  Address {addr:3d}: RESPONSE - {response.hex(' ').upper()}")
             parsed = parse_response(response)
             if parsed:
-                print(f"             Питание: {'ВКЛ' if parsed['power'] else 'ВЫКЛ'}, Режим: {parsed['mode']}, Скорость: {parsed['speed']}, Уставка: {parsed['set_temp']}°C")
+                print(f"             Power: {'ON' if parsed['power'] else 'OFF'}, Mode: {parsed['mode']}, Speed: {parsed['speed']}, SetTemp: {parsed['set_temp']}°C")
             found.append(addr)
         else:
-            print(f"  Адрес {addr:3d}: нет ответа")
+            print(f"  Address {addr:3d}: no response")
     
     return found
 
 def single_query(port, addr):
-    """Один запрос к конкретному адресу"""
+    """Single query to specific address"""
     request = create_request(addr)
-    print(f"\nЗапрос:  {request.hex(' ').upper()}")
+    print(f"\nRequest:  {request.hex(' ').upper()}")
     
     port.reset_input_buffer()
     port.write(request)
@@ -83,31 +83,31 @@ def single_query(port, addr):
     
     response = port.read(32)
     if response:
-        print(f"Ответ:   {response.hex(' ').upper()}")
-        print(f"Длина:   {len(response)} байт")
+        print(f"Response: {response.hex(' ').upper()}")
+        print(f"Length:   {len(response)} bytes")
         parsed = parse_response(response)
         if parsed:
-            print(f"\n--- Расшифровка ---")
-            print(f"  Адрес:     {parsed['addr']}")
-            print(f"  Питание:   {'ВКЛ' if parsed['power'] else 'ВЫКЛ'}")
-            print(f"  Режим:     {parsed['mode']}")
-            print(f"  Скорость:  {parsed['speed']}")
-            print(f"  Уставка:   {parsed['set_temp']}°C")
+            print(f"\n--- Decoded ---")
+            print(f"  Address:  {parsed['addr']}")
+            print(f"  Power:    {'ON' if parsed['power'] else 'OFF'}")
+            print(f"  Mode:     {parsed['mode']}")
+            print(f"  Speed:    {parsed['speed']}")
+            print(f"  SetTemp:  {parsed['set_temp']}°C")
     else:
-        print("Нет ответа")
+        print("No response")
 
 def main():
     print("=" * 50)
     print("  MDV Fancoil Scanner")
     print("=" * 50)
     
-    # Показать порты
+    # Show ports
     ports = list_ports()
     if not ports:
         return
     
-    # Выбор порта
-    print("\nВведите номер порта (или имя, например COM3): ", end="")
+    # Select port
+    print("\nEnter port number (or name, e.g. COM3): ", end="")
     choice = input().strip()
     
     if choice.isdigit():
@@ -115,7 +115,7 @@ def main():
     else:
         port_name = choice.upper()
     
-    print(f"\nПодключение к {port_name}...")
+    print(f"\nConnecting to {port_name}...")
     
     try:
         ser = serial.Serial(
@@ -126,19 +126,19 @@ def main():
             stopbits=1,
             timeout=0.5
         )
-        print(f"Подключено к {port_name}")
+        print(f"Connected to {port_name}")
     except Exception as e:
-        print(f"Ошибка подключения: {e}")
+        print(f"Connection error: {e}")
         return
     
     while True:
-        print("\n--- Меню ---")
-        print("1. Сканировать диапазон 45-55")
-        print("2. Сканировать диапазон 0-63")
-        print("3. Сканировать свой диапазон")
-        print("4. Запрос к одному адресу")
-        print("5. Выход")
-        print("Выбор: ", end="")
+        print("\n--- Menu ---")
+        print("1. Scan range 45-55")
+        print("2. Scan range 0-63")
+        print("3. Scan custom range")
+        print("4. Query single address")
+        print("5. Exit")
+        print("Choice: ", end="")
         
         choice = input().strip()
         
@@ -147,22 +147,22 @@ def main():
         elif choice == '2':
             scan_range(ser, 0, 63)
         elif choice == '3':
-            print("Начальный адрес: ", end="")
+            print("Start address: ", end="")
             start = int(input().strip())
-            print("Конечный адрес: ", end="")
+            print("End address: ", end="")
             end = int(input().strip())
             scan_range(ser, start, end)
         elif choice == '4':
-            print("Адрес фанкойла: ", end="")
+            print("Fancoil address: ", end="")
             addr = int(input().strip())
             single_query(ser, addr)
         elif choice == '5':
             break
         else:
-            print("Неверный выбор")
+            print("Invalid choice")
     
     ser.close()
-    print("Отключено.")
+    print("Disconnected.")
 
 if __name__ == '__main__':
     main()
